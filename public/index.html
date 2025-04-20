@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Attendance App</title>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    input, button { padding: 6px; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h2>Attendance Manager</h2>
+  <input type="text" id="nameInput" placeholder="Enter student name">
+  <button onclick="addStudent()">Add Student</button>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Presents</th>
+        <th>Absents</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="studentTable"></tbody>
+  </table>
+
+  <script>
+    async function loadStudents() {
+      const res = await fetch('/api/students');
+      const students = await res.json();
+      const table = document.getElementById('studentTable');
+      table.innerHTML = '';
+
+      students.forEach(s => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${s.name}</td>
+          <td>${s.presents}</td>
+          <td>${s.absents}</td>
+          <td>
+            <button onclick="mark('${s.name}', 'present')">✔ Present</button>
+            <button onclick="mark('${s.name}', 'absent')">✘ Absent</button>
+            <button onclick="remove('${s.name}')">🗑 Delete</button>
+          </td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    async function addStudent() {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) return alert("Please enter a name.");
+      await fetch('/api/students', { method: 'POST', body: name });
+      document.getElementById('nameInput').value = '';
+      loadStudents();
+    }
+
+    async function mark(name, type) {
+      await fetch('/api/students', {
+        method: 'PUT',
+        body: `${name}:${type}`
+      });
+      loadStudents();
+    }
+
+    async function remove(name) {
+      if (confirm(`Delete student "${name}"?`)) {
+        await fetch('/api/students', {
+          method: 'DELETE',
+          body: name
+        });
+        loadStudents();
+      }
+    }
+
+    loadStudents();
+  </script>
+</body>
+</html>
