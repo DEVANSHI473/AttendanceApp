@@ -51,32 +51,31 @@ public class AttendanceServer {
 
             switch (method) {
                 case "GET":
-                    sendResponse(exchange, 200, loadData());
+                    send(exchange, 200, loadData());
                     break;
                 case "POST":
                     addStudent(body);
-                    sendResponse(exchange, 200, "Student added.");
+                    send(exchange, 200, "Student added.");
                     break;
                 case "PUT":
                     updateAttendance(body);
-                    sendResponse(exchange, 200, "Attendance updated.");
+                    send(exchange, 200, "Updated.");
                     break;
                 case "DELETE":
                     deleteStudent(body);
-                    sendResponse(exchange, 200, "Student deleted.");
+                    send(exchange, 200, "Deleted.");
                     break;
                 default:
-                    sendResponse(exchange, 405, "Method Not Allowed");
+                    send(exchange, 405, "Method Not Allowed");
             }
         }
 
-        private void sendResponse(HttpExchange exchange, int status, String response) throws IOException {
+        private void send(HttpExchange exchange, int code, String response) throws IOException {
             byte[] bytes = response.getBytes();
             exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
-            exchange.sendResponseHeaders(status, bytes.length);
-            OutputStream os = exchange.getResponseBody();
-            os.write(bytes);
-            os.close();
+            exchange.sendResponseHeaders(code, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
         }
 
         private String loadData() throws IOException {
@@ -86,36 +85,41 @@ public class AttendanceServer {
             return "[" + String.join(",", lines) + "]";
         }
 
-        private void addStudent(String name) throws IOException {
+        private void addStudent(String body) throws IOException {
             File file = new File(DATA_FILE);
             if (!file.exists()) file.createNewFile();
 
+            String[] parts = body.split(":");
+            String id = parts[0];
+            String name = parts[1];
+
             List<String> lines = Files.readAllLines(file.toPath());
             for (String line : lines) {
-                if (line.contains("\"name\":\"" + name + "\"")) return;
+                if (line.contains("\"id\":\"" + id + "\"")) return;
             }
 
-            String entry = String.format("{\"name\":\"%s\",\"presents\":0,\"absents\":0}", name);
+            String entry = String.format("{\"id\":\"%s\",\"name\":\"%s\",\"presents\":0,\"absents\":0}", id, name);
             lines.add(entry);
             Files.write(file.toPath(), lines);
         }
 
         private void updateAttendance(String body) throws IOException {
             String[] parts = body.split(":");
-            String name = parts[0];
-            String type = parts[1]; // "present" or "absent"
+            String id = parts[0];
+            String type = parts[1];
 
             File file = new File(DATA_FILE);
             List<String> lines = Files.readAllLines(file.toPath());
             List<String> updated = new ArrayList<>();
 
             for (String line : lines) {
-                if (line.contains("\"name\":\"" + name + "\"")) {
-                    int present = Integer.parseInt(line.replaceAll(".*\"presents\":(\\d+).*", "$1"));
-                    int absent = Integer.parseInt(line.replaceAll(".*\"absents\":(\\d+).*", "$1"));
-                    if (type.equals("present")) present++;
-                    if (type.equals("absent")) absent++;
-                    line = String.format("{\"name\":\"%s\",\"presents\":%d,\"absents\":%d}", name, present, absent);
+                if (line.contains("\"id\":\"" + id + "\"")) {
+                    int p = Integer.parseInt(line.replaceAll(".*\"presents\":(\\d+).*", "$1"));
+                    int a = Integer.parseInt(line.replaceAll(".*\"absents\":(\\d+).*", "$1"));
+                    if (type.equals("present")) p++;
+                    if (type.equals("absent")) a++;
+                    String name = line.replaceAll(".*\"name\":\"([^\"]+)\".*", "$1");
+                    line = String.format("{\"id\":\"%s\",\"name\":\"%s\",\"presents\":%d,\"absents\":%d}", id, name, p, a);
                 }
                 updated.add(line);
             }
@@ -123,10 +127,10 @@ public class AttendanceServer {
             Files.write(file.toPath(), updated);
         }
 
-        private void deleteStudent(String name) throws IOException {
+        private void deleteStudent(String id) throws IOException {
             File file = new File(DATA_FILE);
             List<String> lines = Files.readAllLines(file.toPath());
-            lines.removeIf(line -> line.contains("\"name\":\"" + name + "\""));
+            lines.removeIf(line -> line.contains("\"id\":\"" + id + "\""));
             Files.write(file.toPath(), lines);
         }
     }

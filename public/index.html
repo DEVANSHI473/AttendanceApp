@@ -1,26 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Attendance App</title>
+  <title>Attendance Manager</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    input, button { padding: 6px; margin: 5px; }
+    body { font-family: Arial; padding: 20px; max-width: 900px; margin: auto; }
+    input, button { padding: 5px 10px; margin: 5px; }
     table { width: 100%; border-collapse: collapse; margin-top: 15px; }
     th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    .low { background-color: #ffcccc; }
   </style>
 </head>
 <body>
-  <h2>Attendance Manager</h2>
-  <input type="text" id="nameInput" placeholder="Enter student name">
-  <button onclick="addStudent()">Add Student</button>
+  <h2>🎓 Attendance Manager</h2>
+
+  <input type="text" id="idInput" placeholder="College ID">
+  <input type="text" id="nameInput" placeholder="Student Name">
+  <button onclick="addStudent()">➕ Add Student</button>
 
   <table>
     <thead>
       <tr>
+        <th>College ID</th>
         <th>Name</th>
-        <th>Presents</th>
-        <th>Absents</th>
+        <th>Present</th>
+        <th>Absent</th>
+        <th>Attendance %</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -35,15 +40,21 @@
       table.innerHTML = '';
 
       students.forEach(s => {
+        const total = s.presents + s.absents;
+        const percent = total ? Math.round((s.presents / total) * 100) : 0;
         const row = document.createElement('tr');
+        if (percent < 75) row.className = "low";
+
         row.innerHTML = `
+          <td>${s.id}</td>
           <td>${s.name}</td>
           <td>${s.presents}</td>
           <td>${s.absents}</td>
+          <td>${percent}%</td>
           <td>
-            <button onclick="mark('${s.name}', 'present')">✔ Present</button>
-            <button onclick="mark('${s.name}', 'absent')">✘ Absent</button>
-            <button onclick="remove('${s.name}')">🗑 Delete</button>
+            <button onclick="mark('${s.id}', 'present')">✔ Present</button>
+            <button onclick="mark('${s.id}', 'absent')">✘ Absent</button>
+            <button onclick="remove('${s.id}')">🗑 Delete</button>
           </td>
         `;
         table.appendChild(row);
@@ -51,26 +62,33 @@
     }
 
     async function addStudent() {
+      const id = document.getElementById('idInput').value.trim();
       const name = document.getElementById('nameInput').value.trim();
-      if (!name) return alert("Please enter a name.");
-      await fetch('/api/students', { method: 'POST', body: name });
+      if (!id || !name) return alert("Enter ID and name");
+
+      await fetch('/api/students', {
+        method: 'POST',
+        body: `${id}:${name}`
+      });
+
+      document.getElementById('idInput').value = '';
       document.getElementById('nameInput').value = '';
       loadStudents();
     }
 
-    async function mark(name, type) {
+    async function mark(id, type) {
       await fetch('/api/students', {
         method: 'PUT',
-        body: `${name}:${type}`
+        body: `${id}:${type}`
       });
       loadStudents();
     }
 
-    async function remove(name) {
-      if (confirm(`Delete student "${name}"?`)) {
+    async function remove(id) {
+      if (confirm("Delete student?")) {
         await fetch('/api/students', {
           method: 'DELETE',
-          body: name
+          body: id
         });
         loadStudents();
       }
